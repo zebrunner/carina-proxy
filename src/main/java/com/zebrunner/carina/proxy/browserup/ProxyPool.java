@@ -23,6 +23,7 @@ import com.zebrunner.carina.utils.NetworkUtil;
 import com.zebrunner.carina.utils.R;
 import com.zebrunner.carina.utils.android.recorder.utils.AdbExecutor;
 import com.zebrunner.carina.utils.common.CommonUtils;
+import com.zebrunner.carina.utils.exception.InvalidConfigurationException;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,15 +46,18 @@ public final class ProxyPool {
         initProxyPortsRange();
     }
 
+    private ProxyPool() {
+    }
+
 	public static void initProxyPortsRange() {
 		if (!Configuration.get(Parameter.BROWSERUP_PORTS_RANGE).isEmpty()) {
 			try {
 				String[] ports = Configuration.get(Parameter.BROWSERUP_PORTS_RANGE).split(":");
-				for (int i = Integer.valueOf(ports[0]); i <= Integer.valueOf(ports[1]); i++) {
+				for (int i = Integer.parseInt(ports[0]); i <= Integer.parseInt(ports[1]); i++) {
 					PROXY_PORTS_FROM_RANGE.put(i, true);
 				}
 			} catch (Exception e) {
-				throw new RuntimeException("Please specify BROWSERUP_PORTS_RANGE in format 'port_from:port_to'");
+				throw new InvalidConfigurationException("Please specify BROWSERUP_PORTS_RANGE in format 'port_from:port_to'");
 			}
 		}
 	}
@@ -79,7 +83,9 @@ public final class ProxyPool {
         if (Configuration.getBoolean(Parameter.BROWSERUP_PROXY)) {
             long threadId = Thread.currentThread().getId();
             BrowserUpProxy proxy = startProxy();
-
+            if (proxy == null) {
+                throw new IllegalStateException("Investigate why proxy is null here");
+            }
             Integer port = proxy.getPort();
             PROXY_PORTS_BY_THREAD.put(threadId, port);
             
@@ -106,12 +112,9 @@ public final class ProxyPool {
     // https://github.com/lightbody/browsermob-proxy/issues/264 'started' flag is not set to false after stopping BrowserMobProxyServer
     // Due to the above issue we can't control BrowserMob isRunning state and shouldn't stop it
     // TODO: investigate possibility to clean HAR files if necessary
-    // todo investigate is it work in browserup proxy
-
 
     /**
      * stop BrowserUpProxy Server
-     * 
      */
     /*
     public static void stopProxy() {
@@ -206,13 +209,12 @@ public final class ProxyPool {
     }
     
     private static void setProxyPortToAvailable(long threadId) {
-		if (PROXY_PORTS_BY_THREAD.get(threadId) != null) {
-			if (PROXY_PORTS_FROM_RANGE.get(PROXY_PORTS_BY_THREAD.get(threadId)) != null) {
-				LOGGER.info("Setting BrowserUp proxy port {} to available state", PROXY_PORTS_BY_THREAD.get(threadId));
-				PROXY_PORTS_FROM_RANGE.put(PROXY_PORTS_BY_THREAD.get(threadId), true);
-				PROXY_PORTS_BY_THREAD.remove(threadId);
-			}
-		}
+        if (PROXY_PORTS_BY_THREAD.get(threadId) != null &&
+                PROXY_PORTS_FROM_RANGE.get(PROXY_PORTS_BY_THREAD.get(threadId)) != null) {
+            LOGGER.info("Setting BrowserUp proxy port {} to available state", PROXY_PORTS_BY_THREAD.get(threadId));
+            PROXY_PORTS_FROM_RANGE.put(PROXY_PORTS_BY_THREAD.get(threadId), true);
+            PROXY_PORTS_BY_THREAD.remove(threadId);
+        }
     }
 
     // https://github.com/lightbody/browsermob-proxy/issues/264 'started' flag is not set to false after stopping BrowserMobProxyServer
@@ -335,23 +337,23 @@ public final class ProxyPool {
             //do nothing as it is default dynamic browsermob proxy
             return;
         }
-        LOGGER.info(String.format("Process on port %d will be closed.", port));
+        LOGGER.info("Process on port {} will be closed.", port);
 
         //TODO: make OS independent or remove completely
         try {
             List<?> output = new AdbExecutor().execute(String.format("lsof -ti :%d", port).split(" "));
-            LOGGER.debug("proxy process before kill: " + StringUtils.join(output, ""));
+            LOGGER.debug("proxy process before kill: {}", StringUtils.join(output, ""));
             
             output = new AdbExecutor().execute(String.format("lsof -ti :%d | xargs kill -9", port).split(" "));
-            LOGGER.debug("proxy process kill output: " + StringUtils.join(output, ""));
+            LOGGER.debug("proxy process kill output: {}",  StringUtils.join(output, ""));
             
             output = new AdbExecutor().execute(String.format("lsof -ti :%d", port).split(" "));
-            LOGGER.debug("proxy process after kill: " + StringUtils.join(output, ""));
+            LOGGER.debug("proxy process after kill: {}", StringUtils.join(output, ""));
             
             CommonUtils.pause(1);
             
             output = new AdbExecutor().execute(String.format("lsof -ti :%d", port).split(" "));
-            LOGGER.debug("proxy process after kill and 2 sec pause: " + StringUtils.join(output, ""));
+            LOGGER.debug("proxy process after kill and 2 sec pause: {}", StringUtils.join(output, ""));
             
         } catch (Exception e) {
             LOGGER.error("Unable to kill process by lsof utility!", e);

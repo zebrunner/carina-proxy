@@ -24,6 +24,8 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.invoke.MethodHandles;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -47,7 +49,7 @@ public class LocalTrustStoreBuilder {
      */
     public LocalTrustStoreBuilder(String path) {
         this.tlsConfigDirectory = getTlsConfigDirectoryByPath(path);
-        LOGGER.info("Found tlsConfigDirectory=" + tlsConfigDirectory.getPath());
+        LOGGER.info("Found tlsConfigDirectory={}", tlsConfigDirectory.getPath());
     }
 
     /**
@@ -57,17 +59,16 @@ public class LocalTrustStoreBuilder {
      */
     public LocalTrustStoreBuilder() {
         this.tlsConfigDirectory = findTlsConfigDirectory();
-        LOGGER.info("Found tlsConfigDirectory=" + tlsConfigDirectory.getPath());
+        LOGGER.info("Found tlsConfigDirectory={}", tlsConfigDirectory.getPath());
     }
 
     private File getTlsConfigDirectoryByPath(String path) {
         File directory = new File(path);
-        if (directory != null && directory.exists()) {
-            LOGGER.info("Directory exists: " + directory.getAbsolutePath());
-            return directory;
-        } else {
-            throw new RuntimeException("Directory doesn't exist: " + directory.getAbsolutePath());
+        if (!directory.exists()) {
+            throw new IllegalArgumentException("Directory doesn't exist: " + directory.getAbsolutePath());
         }
+        LOGGER.info("Directory exists: {}", directory.getAbsolutePath());
+        return directory;
     }
 
     /*
@@ -90,7 +91,7 @@ public class LocalTrustStoreBuilder {
             return new File(Configuration.get(Parameter.TLS_KEYSECURE_LOCATION));
         }
 
-        throw new RuntimeException("TLS files directory does not exist anywhere. Please check your configuration");
+        throw new UncheckedIOException(new IOException("TLS files directory does not exist anywhere. Please check your configuration"));
     }
 
     /**
@@ -115,7 +116,7 @@ public class LocalTrustStoreBuilder {
             sslContext.init(null, trustFactory.getTrustManagers(), null);
             return sslContext;
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Something went wrong when try to create SSLContext", e);
         }
     }
 
@@ -127,13 +128,14 @@ public class LocalTrustStoreBuilder {
     public KeyStore createTrustStore() {
         if (tlsConfigDirectory == null) {
             return null;
-        } else {
-            try {
-                return readTrustStore(new File(tlsConfigDirectory, TRUSTSTORE_FILE), TRUSTSTORE_PASSWORD.toCharArray());
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
         }
+
+        try {
+            return readTrustStore(new File(tlsConfigDirectory, TRUSTSTORE_FILE), TRUSTSTORE_PASSWORD.toCharArray());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
     private KeyStore readTrustStore(File trustStoreFile, char[] password) {

@@ -44,7 +44,7 @@ public class CustomRsFilter implements ResponseFilter {
      */
     private void applyHeaders(HttpResponse rs, List<HeaderItem> headers) {
         for (HeaderItem headerItem : headers) {
-            LOGGER.debug("Rewrite header: ".concat(headerItem.toString()));
+            LOGGER.debug("Rewrite header: {}", headerItem);
             switch (headerItem.getMethod()) {
             case ADD:
                 rs.headers().add(headerItem.getHeader().getKey(), headerItem.getHeader().getValue());

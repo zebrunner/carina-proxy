@@ -26,7 +26,7 @@ public class RewriteItem {
 
     private String replacement;
 
-    private List<HeaderItem> headers = new ArrayList<HeaderItem>();
+    private List<HeaderItem> headers = new ArrayList<>();
 
     /**
      * Leave regexp empty in case you don't want to rewrite body

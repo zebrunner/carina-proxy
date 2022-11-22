@@ -47,6 +47,8 @@
         <slf4j.version>1.7.30</slf4j.version>
         <commons-lang3.version>3.5</commons-lang3.version>
         <testng.version>7.6.1</testng.version>
+        <browserup.version>2.1.2</browserup.version>
+        <netty-all.version>4.1.80.Final</netty-all.version>
         <maven-source-plugin.version>3.0.1</maven-source-plugin.version>
         <maven-compiler-plugin.version>3.8.0</maven-compiler-plugin.version>
         <maven-javadoc-plugin.version>3.0.1</maven-javadoc-plugin.version>
@@ -77,7 +79,7 @@
         <dependency>
             <groupId>com.browserup</groupId>
             <artifactId>browserup-proxy-core</artifactId>
-            <version>2.1.2</version>
+            <version>${browserup.version}</version>
             <exclusions>
                 <!-- 4.1.50.Final netty-codec is too old -->
                 <exclusion>
@@ -90,7 +92,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
-            <version>4.1.80.Final</version>
+            <version>${netty-all.version}</version>
         </dependency>
 
         <!-- Test utilities -->

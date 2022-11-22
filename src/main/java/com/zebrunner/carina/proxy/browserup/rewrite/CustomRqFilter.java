@@ -44,13 +44,12 @@ public class CustomRqFilter implements RequestFilter {
         if (rewrites.isEmpty()) {
             return null;
         }
-        String reqUrl = rq.getUri();
+        String reqUrl = rq.uri();
         for (RewriteItem rewriteItem : rewrites) {
             if(reqUrl.matches(rewriteItem.getHost())) {
                 // headers rewrite
-                LOGGER.debug("Rewrite rule will be applied for host: ".concat(reqUrl));
-                rq = applyHeaders(rq, rewriteItem.getHeaders());
-
+                LOGGER.debug("Rewrite rule will be applied for host: {}", reqUrl);
+                applyHeaders(rq, rewriteItem.getHeaders());
                 // body rewrite
                 String content = contents.getTextContents();
                 String replacedContent = content.replaceAll(rewriteItem.getRegex(), rewriteItem.getReplacement());

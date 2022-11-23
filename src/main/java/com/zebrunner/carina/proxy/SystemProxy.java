@@ -17,7 +17,6 @@ package com.zebrunner.carina.proxy;
 
 import com.zebrunner.carina.utils.Configuration;
 import com.zebrunner.carina.utils.Configuration.Parameter;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,7 +65,9 @@ public class SystemProxy {
              * Once a SOCKS proxy is specified in this manner, all TCP connections will be attempted through the proxy.
              * i.e. There is no provision for setting non-proxy hosts via the socks properties.
              */
-            initProxy("socks", proxyHost, proxyPort, StringUtils.EMPTY);
+            LOGGER.info("HTTP client will use socks proxies: {}:{}", proxyHost, proxyPort);
+            System.setProperty("socksProxyHost", proxyHost);
+            System.setProperty("socksProxyPort", proxyPort);
         }
     }
 

@@ -72,14 +72,12 @@ public final class ProxyPool {
     public static BrowserUpProxy createProxy() {
         BrowserUpProxy proxy = new BrowserUpProxyServer();
         proxy.setTrustAllServers(true);
-        //System.setProperty("jsse.enableSNIExtension", "false");
         // disable MITM in case we do not need it
         proxy.setMitmDisabled(Configuration.getBoolean(Parameter.BROWSERUP_MITM));
         return proxy;
     }
     
-    public static void setupBrowserUpProxy()
-    {
+    public static void setupBrowserUpProxy() {
         if (Configuration.getBoolean(Parameter.BROWSERUP_PROXY)) {
             long threadId = Thread.currentThread().getId();
             BrowserUpProxy proxy = startProxy();

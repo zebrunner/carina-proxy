@@ -17,6 +17,7 @@ package com.zebrunner.carina.proxy;
 
 import com.zebrunner.carina.utils.Configuration;
 import com.zebrunner.carina.utils.Configuration.Parameter;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,44 +42,41 @@ public class SystemProxy {
     public static void setupProxy() {
         String proxyHost = Configuration.get(Parameter.PROXY_HOST);
         String proxyPort = Configuration.get(Parameter.PROXY_PORT);
-        String noProxy = Configuration.get(Parameter.NO_PROXY);
-        List<String> protocols = Arrays.asList(Configuration.get(Parameter.PROXY_PROTOCOLS).split("[\\s,]+"));
+        String noProxyHosts = Configuration.get(Parameter.NO_PROXY);
+        List<String> protocols = Arrays.asList(Configuration.get(Parameter.PROXY_PROTOCOLS)
+                .split("[\\s,]+"));
 
-        if (!proxyHost.isEmpty() && !proxyPort.isEmpty() && Configuration.getBoolean(Parameter.PROXY_SET_TO_SYSTEM)) {
-            if (protocols.contains("http")) {
-                LOGGER.info("HTTP client will use http: {}:{}", proxyHost, proxyPort);
-                System.setProperty("http.proxyHost", proxyHost);
-                System.setProperty("http.proxyPort", proxyPort);
-                if (!noProxy.isEmpty()) {
-                    System.setProperty("http.nonProxyHosts", proxyPort);
-                }
-            }
-            if (protocols.contains("https")) {
-                LOGGER.info("HTTP client will use https proxies: {}:{}", proxyHost, proxyPort);
-                System.setProperty("https.proxyHost", proxyHost);
-                System.setProperty("https.proxyPort", proxyPort);
-                if (!noProxy.isEmpty()) {
-                    System.setProperty("https.nonProxyHosts", proxyPort);
-                }
-            }
-            if (protocols.contains("ftp")) {
-                LOGGER.info("HTTP client will use ftp proxies: {}:{}", proxyHost, proxyPort);
-                System.setProperty("ftp.proxyHost", proxyHost);
-                System.setProperty("ftp.proxyPort", proxyPort);
-                if (!noProxy.isEmpty()) {
-                    System.setProperty("ftp.nonProxyHosts", proxyPort);
-                }
-            }
-            if (protocols.contains("socks")) {
-                LOGGER.info("HTTP client will use socks proxies: {}:{}", proxyHost, proxyPort);
-                System.setProperty("socksProxyHost", proxyHost);
-                System.setProperty("socksProxyPort", proxyPort);
-                /*
-                 * http://docs.oracle.com/javase/8/docs/technotes/guides/net/proxies.html
-                 * Once a SOCKS proxy is specified in this manner, all TCP connections will be attempted through the proxy.
-                 * i.e. There is no provision for setting non-proxy hosts via the socks properties.
-                 */
-            }
+        if (proxyHost.isEmpty() || proxyPort.isEmpty() || !Configuration.getBoolean(Parameter.PROXY_SET_TO_SYSTEM)) {
+            return;
+        }
+
+        if (protocols.contains("http")) {
+            initProxy("http", proxyHost, proxyPort, noProxyHosts);
+        }
+        if (protocols.contains("https")) {
+            initProxy("https", proxyHost, proxyPort, noProxyHosts);
+        }
+        if (protocols.contains("ftp")) {
+            initProxy("ftp", proxyHost, proxyPort, noProxyHosts);
+        }
+
+        if (protocols.contains("socks")) {
+            /*
+             * http://docs.oracle.com/javase/8/docs/technotes/guides/net/proxies.html
+             * Once a SOCKS proxy is specified in this manner, all TCP connections will be attempted through the proxy.
+             * i.e. There is no provision for setting non-proxy hosts via the socks properties.
+             */
+            initProxy("socks", proxyHost, proxyPort, StringUtils.EMPTY);
+        }
+    }
+
+    private static void initProxy(String protocolName, String proxyHost, String proxyPort, String noProxyHostNames) {
+        LOGGER.info("HTTP client will use {} proxies: {}:{}", protocolName, proxyHost, proxyPort);
+        System.setProperty(String.format("%s.proxyHost", protocolName), proxyHost);
+        System.setProperty(String.format("%s.proxyPort", protocolName), proxyPort);
+        if (!noProxyHostNames.isEmpty()) {
+            // FIXME should be setted non proxy hosts
+            System.setProperty(String.format("%s.nonProxyHosts", protocolName), proxyPort);
         }
     }
 

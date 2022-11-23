@@ -35,9 +35,7 @@ public class LocalTrustStoreBuilder {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     public static final String TC_CONF_DIR_PATH = "keysecure/";
-
     public static final String TRUSTSTORE_FILE = "truststore.jks";
-    public static final String TRUSTSTORE_PASSWORD = "changeit";
 
     private final File tlsConfigDirectory;
 
@@ -121,17 +119,17 @@ public class LocalTrustStoreBuilder {
     }
 
     /**
-     * Creates the client's trustStore; returns null if the tlsConfigDirectory was not found.
+     * Creates the client's trustStore; returns null if the tlsConfigDirectory was not found.<br>
+     * TrustStore created with password: {@code changeit}
      *
-     * @return KeyStore
+     * @return see {@link KeyStore}
      */
     public KeyStore createTrustStore() {
         if (tlsConfigDirectory == null) {
             return null;
         }
-
         try {
-            return readTrustStore(new File(tlsConfigDirectory, TRUSTSTORE_FILE), TRUSTSTORE_PASSWORD.toCharArray());
+            return readTrustStore(new File(tlsConfigDirectory, TRUSTSTORE_FILE), "changeit".toCharArray());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

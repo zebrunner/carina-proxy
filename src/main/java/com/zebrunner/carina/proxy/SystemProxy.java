@@ -76,8 +76,7 @@ public class SystemProxy {
         System.setProperty(String.format("%s.proxyHost", protocolName), proxyHost);
         System.setProperty(String.format("%s.proxyPort", protocolName), proxyPort);
         if (!noProxyHostNames.isEmpty()) {
-            // FIXME should be setted non proxy hosts
-            System.setProperty(String.format("%s.nonProxyHosts", protocolName), proxyPort);
+            System.setProperty(String.format("%s.nonProxyHosts", protocolName), noProxyHostNames);
         }
     }
 

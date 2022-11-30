@@ -49,6 +49,7 @@
         <testng.version>7.6.1</testng.version>
         <browserup.version>2.1.2</browserup.version>
         <netty-all.version>4.1.80.Final</netty-all.version>
+        <netty-tcnative-classes.version>2.0.54.Final</netty-tcnative-classes.version>
         <maven-source-plugin.version>3.0.1</maven-source-plugin.version>
         <maven-compiler-plugin.version>3.8.0</maven-compiler-plugin.version>
         <maven-javadoc-plugin.version>3.0.1</maven-javadoc-plugin.version>
@@ -93,6 +94,12 @@
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
             <version>${netty-all.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-tcnative-classes</artifactId>
+            <version>${netty-tcnative-classes.version}</version>
         </dependency>
 
         <!-- Test utilities -->

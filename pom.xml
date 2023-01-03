@@ -46,7 +46,7 @@
         <carina-utils.version>1.0.0</carina-utils.version>
         <slf4j.version>1.7.30</slf4j.version>
         <commons-lang3.version>3.5</commons-lang3.version>
-        <testng.version>7.6.1</testng.version>
+        <testng.version>7.7.1</testng.version>
         <browserup.version>2.1.2</browserup.version>
         <netty-all.version>4.1.80.Final</netty-all.version>
         <netty-tcnative-classes.version>2.0.54.Final</netty-tcnative-classes.version>

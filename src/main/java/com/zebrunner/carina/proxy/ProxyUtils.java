@@ -8,16 +8,22 @@ import org.openqa.selenium.Proxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.invoke.MethodHandles;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 
-public enum ProxyUtils {
-
-    INSTANCE;
-
+public final class ProxyUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+    private ProxyUtils() {
+        // hide
+    }
 
     /**
      * Get Selenium proxy object
@@ -25,7 +31,7 @@ public enum ProxyUtils {
      * @return {@link Proxy} in {@link Optional} if according to the configuration it should have been created, {@link Optional#empty()} otherwise
      * @throws InvalidConfigurationException if the proxy configuration in the configuration file is incorrect
      */
-    public Optional<Proxy> getSeleniumProxy() {
+    public static Optional<Proxy> getSeleniumProxy() {
         String proxyTypeAsString = R.CONFIG.get("proxy_type");
         if (proxyTypeAsString.isEmpty()) {
             throw new InvalidConfigurationException("proxy_type should not be empty.");
@@ -68,6 +74,19 @@ public enum ProxyUtils {
             if (autoConfigURL.isEmpty()) {
                 throw new InvalidConfigurationException("ProxyType is PAC, but proxy_autoconfig_url is empty. Please, provide autoconfig url");
             }
+            if (Boolean.parseBoolean(R.CONFIG.get("proxy_pac_local"))) {
+                Path path = Path.of(autoConfigURL);
+                if (!Files.exists(path)) {
+                    throw new InvalidConfigurationException("'proxy_pac_local' parameter value is true, "
+                            + "but there is no file on the path specified in parameter 'proxy_autoconfig_url'. Path: " + path);
+                }
+                if (Files.isDirectory(path)) {
+                    throw new InvalidConfigurationException("'proxy_pac_local' parameter value is true, "
+                            + "but the path specified in the 'proxy_pac_local' parameter does not point to the file, "
+                            + "but to the directory. Specify the path to the file. Path: " + path);
+                }
+                autoConfigURL = encodePAC(path);
+            }
             proxy.setProxyAutoconfigUrl(autoConfigURL);
             break;
         case UNSPECIFIED:
@@ -86,7 +105,23 @@ public enum ProxyUtils {
         return Optional.of(proxy);
     }
 
-    private Optional<Proxy> getLegacyProxy() {
+    /**
+     * Encode PAC file to encoded link with Base64
+     *
+     * @param pathToPac {@link Path} to *.pac file
+     * @return encoded link to pac file
+     * @throws IOException
+     */
+    private static String encodePAC(Path pathToPac) {
+        try {
+            return String.format("data:application/x-javascript-config;base64,%s",
+                    new String(Base64.getEncoder().encode(Files.readAllBytes(pathToPac))));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static Optional<Proxy> getLegacyProxy() {
         ProxyPool.setupBrowserUpProxy();
         SystemProxy.setupProxy();
 

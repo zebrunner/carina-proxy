@@ -35,6 +35,10 @@ public enum ProxyUtils {
             return Optional.empty();
         }
 
+        if ("LEGACY".equalsIgnoreCase(proxyTypeAsString)) {
+            return getLegacyProxy();
+        }
+
         Proxy.ProxyType proxyType;
 
         try {
@@ -67,12 +71,7 @@ public enum ProxyUtils {
             proxy.setProxyAutoconfigUrl(autoConfigURL);
             break;
         case UNSPECIFIED:
-            // todo refactor
-            // use old method if proxy type was not specified
-            Optional<Proxy> optionalProxy2 = getLegacyProxy();
-            if (optionalProxy2.isPresent()) {
-                proxy = optionalProxy2.get();
-            }
+            // do nothing - unspecified is set by default
             break;
 
         case AUTODETECT:
@@ -82,7 +81,7 @@ public enum ProxyUtils {
             proxy.setProxyType(Proxy.ProxyType.SYSTEM);
             break;
         default:
-            LOGGER.error("ProxyType was not detected.");
+            throw new RuntimeException("ProxyType was not detected.");
         }
         return Optional.of(proxy);
     }

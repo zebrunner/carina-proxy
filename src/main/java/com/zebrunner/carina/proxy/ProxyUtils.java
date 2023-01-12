@@ -3,7 +3,9 @@ package com.zebrunner.carina.proxy;
 import com.zebrunner.carina.proxy.browserup.ProxyPool;
 import com.zebrunner.carina.utils.Configuration;
 import com.zebrunner.carina.utils.R;
+import com.zebrunner.carina.utils.commons.SpecialKeywords;
 import com.zebrunner.carina.utils.exception.InvalidConfigurationException;
+import org.apache.commons.lang3.StringUtils;
 import org.openqa.selenium.Proxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +34,7 @@ public final class ProxyUtils {
      * @throws InvalidConfigurationException if the proxy configuration in the configuration file is incorrect
      */
     public static Optional<Proxy> getSeleniumProxy() {
-        String proxyTypeAsString = R.CONFIG.get("proxy_type");
+        String proxyTypeAsString = getConfigurationValue("proxy_type");
         if (proxyTypeAsString.isEmpty()) {
             throw new InvalidConfigurationException("proxy_type should not be empty.");
         }
@@ -70,11 +72,11 @@ public final class ProxyUtils {
             break;
 
         case PAC:
-            String autoConfigURL = R.CONFIG.get("proxy_autoconfig_url");
+            String autoConfigURL = getConfigurationValue("proxy_autoconfig_url");
             if (autoConfigURL.isEmpty()) {
                 throw new InvalidConfigurationException("ProxyType is PAC, but proxy_autoconfig_url is empty. Please, provide autoconfig url");
             }
-            if (Boolean.parseBoolean(R.CONFIG.get("proxy_pac_local"))) {
+            if (Boolean.parseBoolean(getConfigurationValue("proxy_pac_local"))) {
                 Path path = Path.of(autoConfigURL);
                 if (!Files.exists(path)) {
                     throw new InvalidConfigurationException("'proxy_pac_local' parameter value is true, "
@@ -108,9 +110,9 @@ public final class ProxyUtils {
     /**
      * Encode PAC file to encoded link with Base64
      *
-     * @param pathToPac {@link Path} to *.pac file
+     * @param pathToPac {@link Path} to the pac file
      * @return encoded link to pac file
-     * @throws IOException
+     * @throws UncheckedIOException if error happens when try to read/encode content of the file
      */
     private static String encodePAC(Path pathToPac) {
         try {
@@ -166,4 +168,11 @@ public final class ProxyUtils {
         }
         return Optional.of(proxy);
     }
+
+    // todo remove when params will be added to the Configuration class
+    private static String getConfigurationValue(String param) {
+        String value = R.CONFIG.get(param);
+        return !(value == null || value.equalsIgnoreCase(SpecialKeywords.NULL)) ? value : StringUtils.EMPTY;
+    }
+
 }

@@ -1,6 +1,5 @@
 package com.zebrunner.carina.proxy;
 
-import com.zebrunner.carina.proxy.browserup.ProxyPool;
 import com.zebrunner.carina.utils.Configuration;
 import com.zebrunner.carina.utils.R;
 import com.zebrunner.carina.utils.commons.SpecialKeywords;
@@ -31,12 +30,12 @@ public final class ProxyUtils {
      * Get Selenium proxy object
      *
      * @return {@link Proxy} in {@link Optional} if according to the configuration it should have been created, {@link Optional#empty()} otherwise
-     * @throws InvalidConfigurationException if the proxy configuration in the configuration file is incorrect
+     * @throws InvalidConfigurationException if the proxy configuration is incorrect
      */
     public static Optional<Proxy> getSeleniumProxy() {
         String proxyTypeAsString = getConfigurationValue("proxy_type");
         if (proxyTypeAsString.isEmpty()) {
-            throw new InvalidConfigurationException("proxy_type should not be empty.");
+            throw new InvalidConfigurationException("proxy_type should not be empty and have a correct value.");
         }
 
         if ("UNUSED".equalsIgnoreCase(proxyTypeAsString)) {
@@ -62,12 +61,13 @@ public final class ProxyUtils {
             break;
 
         case MANUAL:
-            Optional<Proxy> optionalProxy = getLegacyProxy();
+            Optional<Proxy> optionalProxy = getManualSeleniumProxy();
             if (optionalProxy.isPresent()) {
                 proxy = optionalProxy.get();
             } else {
-                throw new InvalidConfigurationException(
-                        "Provided 'MANUAL' proxy type, but cannot instantiate proxy. Please, check your configuration");
+                LOGGER.debug(
+                        "Provided 'proxy_type=MANUAL', but proxy was not created by rule, so proxy object will not be added to the driver capabilities");
+                proxy = null;
             }
             break;
 
@@ -102,9 +102,9 @@ public final class ProxyUtils {
             proxy.setProxyType(Proxy.ProxyType.SYSTEM);
             break;
         default:
-            throw new RuntimeException("ProxyType was not detected.");
+            throw new InvalidConfigurationException("ProxyType was not detected.");
         }
-        return Optional.of(proxy);
+        return Optional.ofNullable(proxy);
     }
 
     /**
@@ -123,8 +123,55 @@ public final class ProxyUtils {
         }
     }
 
+    private static Optional<Proxy> getManualSeleniumProxy() {
+        Optional<IProxyInfo> proxyInfo = ProxyPool.startProxy();
+        SystemProxy.setupProxy();
+
+        String proxyHost = Configuration.get(Configuration.Parameter.PROXY_HOST);
+        String proxyPort = Configuration.get(Configuration.Parameter.PROXY_PORT);
+        String noProxy = Configuration.get(Configuration.Parameter.NO_PROXY);
+
+        if (proxyInfo.isPresent()) {
+            proxyPort = Integer.toString(proxyInfo.get()
+                    .getPort());
+        }
+        List<String> protocols = Arrays.asList(Configuration.get(Configuration.Parameter.PROXY_PROTOCOLS).split("[\\s,]+"));
+
+        if (proxyHost.isEmpty() || proxyPort.isEmpty()) {
+            return Optional.empty();
+        }
+
+        org.openqa.selenium.Proxy proxy = new org.openqa.selenium.Proxy();
+        String proxyAddress = String.format("%s:%s", proxyHost, proxyPort);
+
+        if (protocols.contains("http")) {
+            LOGGER.info("Http proxy will be set: {}:{}", proxyHost, proxyPort);
+            proxy.setHttpProxy(proxyAddress);
+        }
+
+        if (protocols.contains("https")) {
+            LOGGER.info("Https proxy will be set: {}:{}", proxyHost, proxyPort);
+            proxy.setSslProxy(proxyAddress);
+        }
+
+        if (protocols.contains("ftp")) {
+            LOGGER.info("FTP proxy will be set: {}:{}", proxyHost, proxyPort);
+            proxy.setFtpProxy(proxyAddress);
+        }
+
+        if (protocols.contains("socks")) {
+            LOGGER.info("Socks proxy will be set: {}:{}", proxyHost, proxyPort);
+            proxy.setSocksProxy(proxyAddress);
+        }
+
+        if (!noProxy.isEmpty()) {
+            proxy.setNoProxy(noProxy);
+        }
+        return Optional.of(proxy);
+    }
+
     private static Optional<Proxy> getLegacyProxy() {
-        ProxyPool.setupBrowserUpProxy();
+        com.zebrunner.carina.proxy.browserup.ProxyPool.setupBrowserUpProxy();
         SystemProxy.setupProxy();
 
         String proxyHost = Configuration.get(Configuration.Parameter.PROXY_HOST);
@@ -132,7 +179,7 @@ public final class ProxyUtils {
         String noProxy = Configuration.get(Configuration.Parameter.NO_PROXY);
 
         if (Configuration.get(Configuration.Parameter.BROWSERUP_PROXY).equals("true")) {
-            proxyPort = Integer.toString(ProxyPool.getProxyPortFromThread());
+            proxyPort = Integer.toString(com.zebrunner.carina.proxy.browserup.ProxyPool.getProxyPortFromThread());
         }
         List<String> protocols = Arrays.asList(Configuration.get(Configuration.Parameter.PROXY_PROTOCOLS).split("[\\s,]+"));
 

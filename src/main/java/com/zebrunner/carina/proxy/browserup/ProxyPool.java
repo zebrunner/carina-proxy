@@ -35,7 +35,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Will only work in legacy mode.
+ */
 public final class ProxyPool {
+    // todo should be deprecated
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     private static final ConcurrentHashMap<Long, Integer> PROXY_PORTS_BY_THREAD = new ConcurrentHashMap<>();
     // map for storing of available ports range and their availability
@@ -67,7 +71,7 @@ public final class ProxyPool {
     /**
      * create BrowserUpProxy Server object
      * @return BrowserUpProxy
-     * 
+     *
      */
     public static BrowserUpProxy createProxy() {
         BrowserUpProxy proxy = new BrowserUpProxyServer();
@@ -76,7 +80,7 @@ public final class ProxyPool {
         proxy.setMitmDisabled(Configuration.getBoolean(Parameter.BROWSERUP_MITM));
         return proxy;
     }
-    
+
     public static void setupBrowserUpProxy() {
         if (Configuration.getBoolean(Parameter.BROWSERUP_PROXY)) {
             long threadId = Thread.currentThread().getId();
@@ -86,7 +90,7 @@ public final class ProxyPool {
             }
             Integer port = proxy.getPort();
             PROXY_PORTS_BY_THREAD.put(threadId, port);
-            
+
             // reuse "proxy_host" to be able to share valid publicly available host. 
             // it is useful when java and web tests are executed absolutely in different containers/networks. 
             if (Configuration.get(Parameter.PROXY_HOST).isEmpty()) {
@@ -142,7 +146,7 @@ public final class ProxyPool {
     /**
      * Checking whether BROWSERUP_PORT is declared. then it will be used as port for browserup proxy
      * Otherwise first available port from BROWSERUP_PORTS_RANGE will be used
-     * 
+     *
      * @return port
      */
 	public static int getProxyPortFromConfig() {
@@ -164,14 +168,14 @@ public final class ProxyPool {
     // TODO: investigate possibility to return interface to support JettyProxy
     /**
      * start BrowserUpProxy Server
-     * 
+     *
      * @return BrowserUpProxy
-     * 
+     *
      */
     public static synchronized BrowserUpProxy startProxy() {
         return startProxy(getProxyPortFromConfig());
     }
-    
+
     public static synchronized BrowserUpProxy startProxy(int proxyPort) {
         if (!Configuration.getBoolean(Parameter.BROWSERUP_PROXY)) {
             LOGGER.debug("Proxy is disabled.");
@@ -193,7 +197,7 @@ public final class ProxyPool {
             proxy = ProxyPool.createProxy();
             PROXIES.put(Thread.currentThread().getId(), proxy);
         }
-        
+
         if (!proxy.isStarted()) {
             LOGGER.info("Starting BrowserUp proxy...");
         	// TODO: [VD] confirmed with MB that restart was added just in case. Maybe comment/remove?
@@ -205,7 +209,7 @@ public final class ProxyPool {
 
         return proxy;
     }
-    
+
     private static void setProxyPortToAvailable(long threadId) {
         if (PROXY_PORTS_BY_THREAD.get(threadId) != null &&
                 PROXY_PORTS_FROM_RANGE.get(PROXY_PORTS_BY_THREAD.get(threadId)) != null) {
@@ -221,7 +225,7 @@ public final class ProxyPool {
     
     /**
      * stop BrowserUpProxy Server
-     * 
+     *
      */
     public static void stopProxy() {
         stopProxyByThread(Thread.currentThread().getId());
@@ -235,7 +239,7 @@ public final class ProxyPool {
             stopProxyByThread(threadId);
         }
     }
-    
+
     /**
      * Stop single proxy instance by id
      * @param threadId long
@@ -266,9 +270,9 @@ public final class ProxyPool {
 
     /**
      * get registered BrowserUpProxy Server
-     * 
+     *
      * @return BrowserMobProxy
-     * 
+     *
      */
     public static BrowserUpProxy getProxy() {
         BrowserUpProxy proxy = null;
@@ -291,12 +295,12 @@ public final class ProxyPool {
         }
         return port;
     }
-    
+
     /**
      * return true if proxy is already registered
-     * 
+     *
      * @return boolean
-     * 
+     *
      */
     public static boolean isProxyRegistered() {
         long threadId = Thread.currentThread().getId();
@@ -305,9 +309,9 @@ public final class ProxyPool {
 
     /**
      * register custom BrowserUpProxy Server
-     * 
+     *
      * @param proxy custom BrowserMobProxy
-     * 
+     *
      */
     public static void registerProxy(BrowserUpProxy proxy) {
         long threadId = Thread.currentThread().getId();

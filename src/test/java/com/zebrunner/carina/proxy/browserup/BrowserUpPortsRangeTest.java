@@ -23,7 +23,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-
 public class BrowserUpPortsRangeTest {
     private static String header = "my_header";
     private static String headerValue = "my_value";

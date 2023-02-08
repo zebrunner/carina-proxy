@@ -15,7 +15,6 @@
  *******************************************************************************/
 package com.zebrunner.carina.proxy;
 
-import com.zebrunner.carina.proxy.SystemProxy;
 import com.zebrunner.carina.utils.Configuration.Parameter;
 import com.zebrunner.carina.utils.R;
 import org.testng.Assert;

@@ -41,7 +41,7 @@ public interface IProxy {
     /**
      * Get protocols, supported by this proxy implementation
      *
-     * @return {@link  List} of {@link @Pro}
+     * @return {@link  List} of {@link Protocol}
      */
     default List<Protocol> getSupportedProtocols() {
         return List.of(Protocol.HTTP, Protocol.HTTPS);

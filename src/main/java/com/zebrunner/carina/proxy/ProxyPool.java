@@ -1,7 +1,5 @@
 package com.zebrunner.carina.proxy;
 
-import com.zebrunner.carina.utils.Configuration;
-import com.zebrunner.carina.utils.NetworkUtil;
 import com.zebrunner.carina.utils.R;
 import com.zebrunner.carina.utils.commons.SpecialKeywords;
 import com.zebrunner.carina.utils.exception.InvalidConfigurationException;
@@ -30,17 +28,16 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>
  * Configuration:
- * <b>proxy_port</b> - proxy port, that will be used by default for proxy starting. Default value: 0 (dynamic proxy port - depends on implementation ??)
- * <b>proxy_ports</b> - proxy port(s), that will be used to start proxy. They will be used only in case when proxy_port is empty or NULL
+ * <b>proxy_port</b> - proxy port, that will be used by default for proxy starting. Default value: 0
+ * <b>proxy_ports</b> - proxy port(s), that will be used to start proxy. They will be used only in case when proxy_port is NULL
  *
  * Default proxy (that use BrowserUp proxy) depends on configuration:
  * <b>browserup_proxy</b> - true if proxy should be started, false otherwise
  * <b>browserup_disabled_mitm</b> - when true, MITM capture will be disabled, false otherwise
  * <br>
- * <b>Important</b>: the proxy will be launched by Carina Framework before driver starts when generation capabilities only if the <b>MANUAL</b> mode is enabled in the configuration (<b>proxy_type=MANUAL</b>)
+ * <b>Important</b>: the proxy will be launched by Carina Framework before driver starts when generation capabilities only if the <b>DYNAMIC</b> mode is enabled in the configuration (<b>proxy_type=DYNAMIC</b>)
  */
 public class ProxyPool {
-    //todo refactor: proxy_host - will be overwritten by pool if proxy will be started ?
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     private static final Map<Long, IProxy> PROXY_POOL = new ConcurrentHashMap<>();
     private static final Map<Integer, Boolean> PROXY_PORTS_FROM_RANGE = new ConcurrentHashMap<>();
@@ -139,24 +136,6 @@ public class ProxyPool {
         }
 
         PROXY_PORTS_BY_THREAD.put(threadId, proxyInfo.getPort());
-
-        // todo investigate why we need this? For system proxy?
-        // todo refactor - too global changes of parameters
-        ////////////////////////////////////////////////////////////////////////
-        if (Configuration.get(Configuration.Parameter.PROXY_HOST).isEmpty()) {
-            String currentIP = NetworkUtil.getIpAddress();
-            R.CONFIG.put(Configuration.Parameter.PROXY_HOST.getKey(), currentIP);
-        }
-        Integer proxyPort = proxyInfo.getPort();
-
-        LOGGER.warn("Set http/https proxy settings only to use with BrowserUpProxy host: {}; port: {}",
-                Configuration.get(Configuration.Parameter.PROXY_HOST),
-                +proxyPort);
-
-        // todo strange logic? rewrite global proxy on every starting of proxy? It can be cause to undefined behavior
-        R.CONFIG.put(Configuration.Parameter.PROXY_PORT.getKey(), proxyPort.toString());
-        R.CONFIG.put("proxy_protocols", "http,https");
-        /////////////////////////////////////////////////////////////////////////
         return proxyInfo;
     }
 
@@ -304,9 +283,9 @@ public class ProxyPool {
      * @return 'proxy_port' value from configuration if it exists, proxy_ports available port otherwise
      */
     private static Integer getProxyPortFromConfig() {
-        if (!getConfigurationParam("proxy_port").isEmpty())
+        if (!getConfigurationParam("proxy_port").isEmpty()) {
             return Integer.valueOf(getConfigurationParam("proxy_port"));
-        else if (!getConfigurationParam("proxy_ports").isEmpty()) {
+        } else if (!getConfigurationParam("proxy_ports").isEmpty()) {
             for (Map.Entry<Integer, Boolean> pair : PROXY_PORTS_FROM_RANGE.entrySet()) {
                 if (pair.getValue()) {
                     LOGGER.info("Making proxy port busy: {}", pair.getKey());

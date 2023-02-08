@@ -31,35 +31,100 @@ import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class SystemProxy {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     private SystemProxy() {
+        // hide
     }
 
+    /**
+     * Set host and port to the system proxy properties for specified {@link Protocol}
+     *
+     * @param proxyHost proxy host, for example {@code 0.0.0.0}
+     * @param proxyPort proxy port, for example {@code 80}
+     * @param protocol  see {@link Protocol}
+     * @param noProxy   a list of hosts that should be reached directly, bypassing the proxy.
+     *                  This is a list of patterns separated by '|'. The patterns may start or
+     *                  end with a '*' for wildcards. Any host matching one of these patterns
+     *                  will be reached through a direct connection instead of through a proxy.
+     *                  For example: {@code localhost|host.example.com} -  proxy won't be used
+     *                  when connecting to either localhost or host.example.com.
+     *                  Ignored by {@link Protocol#SOCKS}.
+     */
+    public static void setupSystemProxy(String proxyHost, String proxyPort, Protocol protocol, String noProxy) {
+        if (protocol.equals(Protocol.HTTP)) {
+            initProxy("http", proxyHost, String.valueOf(proxyPort), noProxy);
+        } else if (protocol.equals(Protocol.HTTPS)) {
+            initProxy("https", proxyHost, String.valueOf(proxyPort), noProxy);
+        } else if (protocol.equals(Protocol.FTP)) {
+            initProxy("ftp", proxyHost, String.valueOf(proxyPort), noProxy);
+        } else if (protocol.equals(Protocol.SOCKS)) {
+            /*
+             * http://docs.oracle.com/javase/8/docs/technotes/guides/net/proxies.html
+             * Once a SOCKS proxy is specified in this manner, all TCP connections will be attempted through the proxy.
+             * i.e. There is no provision for setting non-proxy hosts via the socks properties.
+             */
+            LOGGER.info("HTTP client will use socks proxies: {}:{}", proxyHost, proxyPort);
+            System.setProperty("socksProxyHost", proxyHost);
+            System.setProperty("socksProxyPort", String.valueOf(proxyPort));
+        }
+    }
+
+    /**
+     * Setup system proxy from properties.<br>
+     * <b>If there are started dynamic proxy, it's values will be in priority</b>
+     */
     public static void setupProxy() {
         String proxyHost = Configuration.get(Parameter.PROXY_HOST);
         String proxyPort = Configuration.get(Parameter.PROXY_PORT);
-        String noProxyHosts = Configuration.get(Parameter.NO_PROXY);
         List<String> protocols = Arrays.asList(Configuration.get(Parameter.PROXY_PROTOCOLS)
                 .split("[\\s,]+"));
+        List<String> supportedProtocols = protocols;
 
-        if (proxyHost.isEmpty() || proxyPort.isEmpty() || !Configuration.getBoolean(Parameter.PROXY_SET_TO_SYSTEM)) {
+        // get values of dynamic proxy in priority
+        Optional<IProxy> dynamicProxy = ProxyPool.getProxy();
+        if (dynamicProxy.isPresent()) {
+            IProxyInfo proxyInfo = dynamicProxy.get().getInfo();
+            proxyHost = proxyInfo.getHost();
+            proxyPort = String.valueOf(proxyInfo.getPort());
+            LOGGER.debug("Detected dynamic proxy '{}', it's host '{}' and port '{}' will be used in priority for system proxy."
+                            + "System proxy parameters is not thread-safe.",
+                    dynamicProxy.get(), proxyHost, proxyPort);
+            supportedProtocols = dynamicProxy.get()
+                    .getSupportedProtocols()
+                    .stream()
+                    .map(Protocol::toString)
+                    .collect(Collectors.toList());
+        }
+
+        if (proxyHost.isEmpty() ||
+                proxyPort.isEmpty() ||
+                !Configuration.getBoolean(Parameter.PROXY_SET_TO_SYSTEM)) {
             return;
         }
 
-        if (protocols.contains("http")) {
-            initProxy("http", proxyHost, proxyPort, noProxyHosts);
+        String noProxyHosts = Configuration.get(Parameter.NO_PROXY);
+        // there are difference between system noproxy (parttern with '|' delimiter) and selenium noproxy (addresses with ',' delimiter)
+        // in configuration we use set noproxy in selenium style, so for system proxy we should rewrite it for compatibility
+        String systemNoProxy = noProxyHosts.contains(",") ? Arrays.stream(noProxyHosts.split(","))
+                .map(String::trim)
+                .collect(Collectors.joining("|")) : noProxyHosts;
+
+        if (protocols.contains("http") && supportedProtocols.contains("http")) {
+            initProxy("http", proxyHost, proxyPort, systemNoProxy);
         }
-        if (protocols.contains("https")) {
-            initProxy("https", proxyHost, proxyPort, noProxyHosts);
+        if (protocols.contains("https") && supportedProtocols.contains("https")) {
+            initProxy("https", proxyHost, proxyPort, systemNoProxy);
         }
-        if (protocols.contains("ftp")) {
-            initProxy("ftp", proxyHost, proxyPort, noProxyHosts);
+        if (protocols.contains("ftp") && supportedProtocols.contains("ftp")) {
+            initProxy("ftp", proxyHost, proxyPort, systemNoProxy);
         }
 
-        if (protocols.contains("socks")) {
+        if (protocols.contains("socks") && supportedProtocols.contains("socks")) {
             /*
              * http://docs.oracle.com/javase/8/docs/technotes/guides/net/proxies.html
              * Once a SOCKS proxy is specified in this manner, all TCP connections will be attempted through the proxy.

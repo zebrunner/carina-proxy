@@ -1,8 +1,10 @@
 package com.zebrunner.carina.proxy;
 
+import java.util.List;
+
 /**
  * Describes methods used by {@link ProxyPool} to manage proxy state.<br>
- * Is an abstraction over any proxy implementation
+ * Is an abstraction over any proxy implementation.
  */
 public interface IProxy {
 
@@ -35,4 +37,13 @@ public interface IProxy {
      * @return true if is proxy started, false otherwise
      */
     boolean isStarted();
+
+    /**
+     * Get protocols, supported by this proxy implementation
+     *
+     * @return {@link  List} of {@link @Pro}
+     */
+    default List<Protocol> getSupportedProtocols() {
+        return List.of(Protocol.HTTP, Protocol.HTTPS);
+    }
 }

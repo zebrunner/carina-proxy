@@ -19,8 +19,6 @@ import com.browserup.bup.BrowserUpProxy;
 import com.browserup.bup.proxy.CaptureType;
 import com.zebrunner.carina.proxy.browserup.CarinaBrowserUpProxy;
 import com.zebrunner.carina.proxy.browserup.LocalTrustStoreBuilder;
-import com.zebrunner.carina.utils.Configuration;
-import com.zebrunner.carina.utils.Configuration.Parameter;
 import com.zebrunner.carina.utils.R;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,7 +51,6 @@ public class BrowserUpProxyPoolTest {
         ProxyPool.setRule(new DefaultProxyRule(), true);
         R.CONFIG.put("core_log_level", "DEBUG");
         R.CONFIG.put("browserup_proxy", "true");
-        R.CONFIG.put("browserup_port", "0");
         R.CONFIG.put("proxy_set_to_system", "true");
         R.CONFIG.put("browserup_disabled_mitm", "false");
     }
@@ -74,8 +71,11 @@ public class BrowserUpProxyPoolTest {
     @Test
     public void testBrowserUpProxySystemIntegration() {
         initialize();
-        Assert.assertEquals(Configuration.get(Parameter.PROXY_HOST), System.getProperty("http.proxyHost"));
-        Assert.assertEquals(Configuration.get(Parameter.PROXY_PORT), System.getProperty("http.proxyPort"));
+        IProxyInfo proxyInfo = ProxyPool.getProxy()
+                .orElseThrow()
+                .getInfo();
+        Assert.assertEquals(proxyInfo.getHost(), System.getProperty("http.proxyHost"));
+        Assert.assertEquals(String.valueOf(proxyInfo.getPort()), System.getProperty("http.proxyPort"));
     }
 
     @Test
@@ -160,7 +160,6 @@ public class BrowserUpProxyPoolTest {
     private void initialize() {
         ProxyPool.startProxy();
         SystemProxy.setupProxy();
-
         BrowserUpProxy proxy = ProxyPool.getOriginal(CarinaBrowserUpProxy.class).orElseThrow().getProxy();
         proxy.addHeader(header, headerValue);
     }

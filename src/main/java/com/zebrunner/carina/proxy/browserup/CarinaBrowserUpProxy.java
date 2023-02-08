@@ -6,6 +6,7 @@ import com.zebrunner.carina.proxy.IProxy;
 import com.zebrunner.carina.proxy.IProxyInfo;
 import com.zebrunner.carina.proxy.ProxyInfo;
 import com.zebrunner.carina.utils.Configuration;
+import com.zebrunner.carina.utils.NetworkUtil;
 import com.zebrunner.carina.utils.common.CommonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,8 +18,7 @@ import java.lang.invoke.MethodHandles;
  */
 public class CarinaBrowserUpProxy implements IProxy {
     // todo investigate using Process / Runnable / Callable to start BrowserUpProxy
-    // when we kill parent process, all child processes also will be killed?
-    // todo should be replaced by mitmproxy
+    // todo investigate using mitmproxy instead
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     protected final BrowserUpProxy proxy;
@@ -39,8 +39,8 @@ public class CarinaBrowserUpProxy implements IProxy {
         LOGGER.info("Starting BrowserUp proxy...");
         proxy.start(port);
 
-        CommonUtils.pause(2); // todo set pause or not?
-        proxyInfo = new ProxyInfo(proxy.getPort());
+        CommonUtils.pause(1); // todo set pause or not?
+        proxyInfo = new ProxyInfo(NetworkUtil.getIpAddress(), proxy.getPort());
         return proxyInfo;
     }
 
@@ -84,4 +84,8 @@ public class CarinaBrowserUpProxy implements IProxy {
         return proxy;
     }
 
+    @Override
+    public String toString() {
+        return "CarinaBrowserUpProxy";
+    }
 }

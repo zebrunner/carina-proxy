@@ -36,7 +36,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Will only work in legacy mode.
+ * Used only in LEGACY mode
  */
 public final class ProxyPool {
     // todo should be deprecated

@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 public final class ProxyUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -27,7 +28,7 @@ public final class ProxyUtils {
     }
 
     /**
-     * Get Selenium proxy object
+     * Get Selenium proxy object<br>
      *
      * @return {@link Proxy} in {@link Optional} if according to the configuration it should have been created, {@link Optional#empty()} otherwise
      * @throws InvalidConfigurationException if the proxy configuration is incorrect
@@ -38,12 +39,22 @@ public final class ProxyUtils {
             throw new InvalidConfigurationException("proxy_type should not be empty and have a correct value.");
         }
 
+        // in the old approach, in any situation, before the formation of the object proxy,
+        // after the possible start of the dynamic proxy, the system proxy was initialized.
+        // We leave it for compatibility, even if in MANUAL and DYNAMIC mode the system proxy
+        // will be overwritten again
+        SystemProxy.setupProxy();
+
         if ("UNUSED".equalsIgnoreCase(proxyTypeAsString)) {
             return Optional.empty();
         }
 
         if ("LEGACY".equalsIgnoreCase(proxyTypeAsString)) {
             return getLegacyProxy();
+        }
+
+        if ("DYNAMIC".equalsIgnoreCase(proxyTypeAsString)) {
+            return getDynamicSeleniumProxy();
         }
 
         Proxy.ProxyType proxyType;
@@ -61,14 +72,7 @@ public final class ProxyUtils {
             break;
 
         case MANUAL:
-            Optional<Proxy> optionalProxy = getManualSeleniumProxy();
-            if (optionalProxy.isPresent()) {
-                proxy = optionalProxy.get();
-            } else {
-                LOGGER.debug(
-                        "Provided 'proxy_type=MANUAL', but proxy was not created by rule, so proxy object will not be added to the driver capabilities");
-                proxy = null;
-            }
+            proxy = getManualSeleniumProxy();
             break;
 
         case PAC:
@@ -104,7 +108,7 @@ public final class ProxyUtils {
         default:
             throw new InvalidConfigurationException("ProxyType was not detected.");
         }
-        return Optional.ofNullable(proxy);
+        return Optional.of(proxy);
     }
 
     /**
@@ -123,22 +127,21 @@ public final class ProxyUtils {
         }
     }
 
-    private static Optional<Proxy> getManualSeleniumProxy() {
-        Optional<IProxyInfo> proxyInfo = ProxyPool.startProxy();
-        SystemProxy.setupProxy();
-
+    private static Proxy getManualSeleniumProxy() {
         String proxyHost = Configuration.get(Configuration.Parameter.PROXY_HOST);
         String proxyPort = Configuration.get(Configuration.Parameter.PROXY_PORT);
         String noProxy = Configuration.get(Configuration.Parameter.NO_PROXY);
+        // there are difference between system noproxy (parttern with '|' delimiter) and selenium noproxy (addresses with ',' delimiter)
+        String systemNoProxy = noProxy.contains(",") ? Arrays.stream(noProxy.split(","))
+                .map(String::trim)
+                .collect(Collectors.joining("|")) : noProxy;
 
-        if (proxyInfo.isPresent()) {
-            proxyPort = Integer.toString(proxyInfo.get()
-                    .getPort());
-        }
         List<String> protocols = Arrays.asList(Configuration.get(Configuration.Parameter.PROXY_PROTOCOLS).split("[\\s,]+"));
+        boolean isSetToSystem = Configuration.getBoolean(Configuration.Parameter.PROXY_SET_TO_SYSTEM);
 
-        if (proxyHost.isEmpty() || proxyPort.isEmpty()) {
-            return Optional.empty();
+        if (proxyHost.isEmpty() || proxyPort.isEmpty() || protocols.isEmpty()) {
+            throw new InvalidConfigurationException(
+                    "Provided 'MANUAL' proxy type, but proxyHost, proxyPort or proxy protocols is empty. Please, provide valid configuration.");
         }
 
         org.openqa.selenium.Proxy proxy = new org.openqa.selenium.Proxy();
@@ -147,27 +150,135 @@ public final class ProxyUtils {
         if (protocols.contains("http")) {
             LOGGER.info("Http proxy will be set: {}:{}", proxyHost, proxyPort);
             proxy.setHttpProxy(proxyAddress);
+            if (isSetToSystem) {
+                //todo investigate if we need to set system proxy here
+                SystemProxy.setupSystemProxy(proxyHost, proxyPort, Protocol.HTTP, systemNoProxy);
+            }
         }
 
         if (protocols.contains("https")) {
             LOGGER.info("Https proxy will be set: {}:{}", proxyHost, proxyPort);
             proxy.setSslProxy(proxyAddress);
+            if (isSetToSystem) {
+                //todo investigate if we need to set system proxy here
+                SystemProxy.setupSystemProxy(proxyHost, proxyPort, Protocol.HTTPS, systemNoProxy);
+            }
         }
 
         if (protocols.contains("ftp")) {
             LOGGER.info("FTP proxy will be set: {}:{}", proxyHost, proxyPort);
             proxy.setFtpProxy(proxyAddress);
+            if (isSetToSystem) {
+                //todo investigate if we need to set system proxy here
+                SystemProxy.setupSystemProxy(proxyHost, proxyPort, Protocol.FTP, systemNoProxy);
+            }
         }
 
         if (protocols.contains("socks")) {
             LOGGER.info("Socks proxy will be set: {}:{}", proxyHost, proxyPort);
             proxy.setSocksProxy(proxyAddress);
+            if (isSetToSystem) {
+                //todo investigate if we need to set system proxy here
+                SystemProxy.setupSystemProxy(proxyHost, proxyPort, Protocol.SOCKS, systemNoProxy);
+            }
         }
 
         if (!noProxy.isEmpty()) {
             proxy.setNoProxy(noProxy);
         }
-        return Optional.of(proxy);
+        return proxy;
+    }
+
+    private static Optional<Proxy> getDynamicSeleniumProxy() {
+        ProxyPool.startProxy();
+        Optional<IProxy> proxy = ProxyPool.getProxy();
+
+        if (proxy.isEmpty()) {
+            return Optional.empty();
+        }
+
+        IProxyInfo proxyInfo = proxy.orElseThrow(() -> new RuntimeException("Proxy info should exists for starting proxy"))
+                .getInfo();
+        String noProxy = Configuration.get(Configuration.Parameter.NO_PROXY);
+        boolean isSetToSystem = Configuration.getBoolean(Configuration.Parameter.PROXY_SET_TO_SYSTEM);
+        // there are difference between system noproxy (parttern with '|' delimiter) and selenium noproxy (addresses with ',' delimiter)
+        String systemNoProxy = noProxy.contains(",") ? Arrays.stream(noProxy.split(","))
+                .map(String::trim)
+                .collect(Collectors.joining("|")) : noProxy;
+
+        if (isSetToSystem) {
+            LOGGER.warn("Setting proxy to system parameters is not thread-safe with DYNAMIC proxy mode.");
+        }
+
+        List<String> protocols = Arrays.asList(Configuration.get(Configuration.Parameter.PROXY_PROTOCOLS).split("[\\s,]+"));
+        List<Protocol> supportedProtocols = proxy.get()
+                .getSupportedProtocols();
+        String proxyHost = proxyInfo.getHost();
+        String proxyPort = String.valueOf(proxyInfo.getPort());
+
+        org.openqa.selenium.Proxy seleniumProxy = new org.openqa.selenium.Proxy();
+        String proxyAddress = String.format("%s:%s", proxyHost, proxyPort);
+
+        if (protocols.contains("http")) {
+            if (supportedProtocols.contains(Protocol.HTTP)) {
+                LOGGER.info("Http proxy will be set: {}:{}", proxyHost, proxyPort);
+                seleniumProxy.setHttpProxy(proxyAddress);
+                if (isSetToSystem) {
+                    //todo investigate if we need to set system proxy here
+                    SystemProxy.setupSystemProxy(proxyHost, proxyPort, Protocol.HTTP, systemNoProxy);
+                }
+            } else {
+                LOGGER.warn("'proxy_protocols' configuration parameter contains 'http' protocol, but '{}' proxy implementation does not support it.",
+                        proxy.get());
+            }
+        }
+
+        if (protocols.contains("https")) {
+            if (supportedProtocols.contains(Protocol.HTTPS)) {
+                LOGGER.info("Https proxy will be set: {}:{}", proxyHost, proxyPort);
+                seleniumProxy.setSslProxy(proxyAddress);
+                if (isSetToSystem) {
+                    //todo investigate if we need to set system proxy here
+                    SystemProxy.setupSystemProxy(proxyHost, proxyPort, Protocol.HTTPS, systemNoProxy);
+                }
+            } else {
+                LOGGER.warn("'proxy_protocols' configuration parameter contains 'https' protocol, but '{}' proxy implementation does not support it.",
+                        proxy.get());
+            }
+        }
+
+        if (protocols.contains("ftp")) {
+            if (supportedProtocols.contains(Protocol.FTP)) {
+                LOGGER.info("FTP proxy will be set: {}:{}", proxyHost, proxyPort);
+                seleniumProxy.setFtpProxy(proxyAddress);
+                if (isSetToSystem) {
+                    //todo investigate if we need to set system proxy here
+                    SystemProxy.setupSystemProxy(proxyHost, proxyPort, Protocol.FTP, systemNoProxy);
+                }
+            } else {
+                LOGGER.warn("'proxy_protocols' configuration parameter contains 'ftp' protocol, but '{}' proxy implementation does not support it.",
+                        proxy.get());
+            }
+        }
+
+        if (protocols.contains("socks")) {
+            if (supportedProtocols.contains(Protocol.SOCKS)) {
+                LOGGER.info("Socks proxy will be set: {}:{}", proxyHost, proxyPort);
+                seleniumProxy.setSocksProxy(proxyAddress);
+                if (isSetToSystem) {
+                    //todo investigate if we need to set system proxy here
+                    SystemProxy.setupSystemProxy(proxyHost, proxyPort, Protocol.SOCKS, systemNoProxy);
+                }
+            } else {
+                LOGGER.warn("'proxy_protocols' configuration parameter contains 'socks' protocol, but '{}' proxy implementation does not support it.",
+                        proxy.get());
+            }
+        }
+
+        if (!noProxy.isEmpty()) {
+            seleniumProxy.setNoProxy(noProxy);
+        }
+        return Optional.of(seleniumProxy);
     }
 
     private static Optional<Proxy> getLegacyProxy() {

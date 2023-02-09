@@ -91,6 +91,13 @@ public class ProxyPool {
     }
 
     /**
+     * Remove thread-only {@link IProxyRule} if exist
+     */
+    public static void clearThreadRule() {
+        THREAD_RULE.remove();
+    }
+
+    /**
      * Start proxy (depends on {@link IProxyRule} implementation(s))<br>
      *
      * @return {@link Optional} of {@link ProxyInfo} if proxy started (should it be started or not depends on rule),

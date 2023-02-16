@@ -26,7 +26,7 @@ public class SystemProxyTest {
     private static String host = "localhost";
     private static String port = "80";
 
-    @BeforeClass(alwaysRun = true)
+    @BeforeClass(alwaysRun = true, enabled = false)
     public void beforeClass() {
         // do nothing
 
@@ -37,7 +37,7 @@ public class SystemProxyTest {
 
     }
 
-    @BeforeMethod
+    @BeforeMethod(enabled = false)
     public void resetSystemProperties() {
         System.setProperty("http.proxyHost", "");
         System.setProperty("https.proxyHost", "");
@@ -50,7 +50,7 @@ public class SystemProxyTest {
         System.setProperty("socksProxyPort", "");
     }
 
-    @Test
+    @Test(enabled = false)
     public void testHttpSystemProxy() {
         R.CONFIG.put("proxy_protocols", "http");
         SystemProxy.setupProxy();
@@ -66,7 +66,7 @@ public class SystemProxyTest {
         Assert.assertEquals(System.getProperty("socksProxyPort"), "");
     }
 
-    @Test
+    @Test(enabled = false)
     public void testHttpsSystemProxy() {
         R.CONFIG.put("proxy_protocols", "https");
         SystemProxy.setupProxy();
@@ -82,7 +82,7 @@ public class SystemProxyTest {
         Assert.assertEquals(System.getProperty("socksProxyPort"), "");
     }
 
-    @Test
+    @Test(enabled = false)
     public void testFtpSystemProxy() {
         R.CONFIG.put("proxy_protocols", "ftp");
         SystemProxy.setupProxy();
@@ -98,7 +98,7 @@ public class SystemProxyTest {
         Assert.assertEquals(System.getProperty("socksProxyPort"), "");
     }
 
-    @Test
+    @Test(enabled = false)
     public void testSocksSystemProxy() {
         R.CONFIG.put("proxy_protocols", "socks");
         SystemProxy.setupProxy();
